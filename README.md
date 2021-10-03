@@ -1,1 +1,1 @@
-# residual-video-captioning
+# video-captioning
