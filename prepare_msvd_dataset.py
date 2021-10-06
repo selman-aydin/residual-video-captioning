@@ -11,7 +11,7 @@ import random
 
 class MSVDDataset():
 
-    def __init__(self) -> None:
+    def __init__(self, root_folder:pathlib.Path = None) -> None:
         # name of the dataset.
         self.name = "MSVD"
 
@@ -21,8 +21,8 @@ class MSVDDataset():
         # url links for the dataset annotations in zip format.
         self.annotations_path = "https://github.com/jazzsaxmafia/video_to_sequence/files/387979/video_corpus.csv.zip"
 
-        # Project root Path
-        self.root_folder = Path("/media/envisage/Yeni Birim/Selman/")
+        # Project root Path        
+        self.root_folder = root_folder if root_folder is not None else Path('/') / 'media' / 'envisage' / 'Yeni Birim' / 'Selman' 
 
         # dataset Path
         self.dataset_folder = self.root_folder / "MSVD"
