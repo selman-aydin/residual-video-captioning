@@ -8,6 +8,12 @@ from zipfile import ZipFile
 from typing import List, Tuple
 import json
 import random
+from shutil import rmtree
+import csv
+from socket import gethostname
+hostname = gethostname()
+
+from torchvision.datasets.utils import download_and_extract_archive, download_url, _extract_zip
 
 class MSVDDataset():
 
@@ -41,42 +47,31 @@ class MSVDDataset():
             Download the dataset's train images, val images and their annotations into the MSCOCO folder.
         '''
 
-        # dataset paths in a list.
-        download_list = [self.video_path,self.annotations_path]
+        # download videos
+        download_and_extract_archive(url=self.video_path, download_root=str(self.dataset_folder), remove_finished=True)
+        filename = Path(self.video_path).name
+        archive = self.dataset_folder / filename
+        archive.unlink()
 
-        for path in download_list:
-            r = requests.get(path, stream=True)
-            # Get where to save the file i.e. MSCOCO/train2017.zip
-            save_path = self.dataset_folder / PurePath(path).parts[-1]
+        # check if the dataset folder exists if not create it.
+        if not self.dataset_folder.exists():
+            Path(self.dataset_folder).mkdir(parents=True, exist_ok=True)
+        
+        #download annotations
+        filename = Path(self.annotations_path).name
+        download_url(url=self.annotations_path, root=str(self.dataset_folder), filename=filename, md5=None)
+        archive = self.dataset_folder / filename
+        aux_dir = self.dataset_folder / '__MACOSX'
+        _extract_zip(str(archive), str(archive.parent), None)
+        archive.unlink()
+        rmtree(aux_dir)
 
-            # check if the dataset folder exists if not create it.
-            if not self.dataset_folder.exists():
-                Path(self.dataset_folder).mkdir(parents=True, exist_ok=True)
-
-            # Download data
-            print("Downloading... " + path + " to " + str(save_path))
-            with open(str(save_path), 'wb') as fd:
-                for chunk in tqdm(r.iter_content(chunk_size=128)):
-                    fd.write(chunk)
-
-            # Extract all the contents of zip file in to the dataset folder
-            with ZipFile(str(save_path), 'r') as zipObj:
-                zipObj.extractall(path=str(self.dataset_folder))
-            # delete the zip file.
-            save_path.unlink()
-
-        # collect all the json files PosixPath into a list.
-        list_of_annotations = list(self.annotations_folder.glob("*.json"))
-
-        # Delete all the json's other than train and val captions.
-        for ann in list_of_annotations:
-            # Check if it is train captions or val captions if not proceed to deletion process.
-            if ann != self.captions:
-                # Check if the json file exists.
-                if ann.exists():
-                    # Delete the json file.
-                    ann.unlink()
+       
 
 
-run = MSVDDataset()
-run.download_dataset()
+
+if 'ozkan' in hostname:
+    dt = MSVDDataset(Path('.'))
+else:
+    dt = MSVDDataset()
+dt.download_dataset()
