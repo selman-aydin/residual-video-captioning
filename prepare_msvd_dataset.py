@@ -92,7 +92,7 @@ class MSVDDataset():
 
 
 
-    def splitVıdeos(self):
+    def splitVideos(self):
         Path(self.train_folder).mkdir(parents=True, exist_ok=True)
         Path(self.val_folder).mkdir(parents=True, exist_ok=True)
 
