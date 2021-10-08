@@ -12,9 +12,9 @@ import pandas
 import unicodedata
 import re
 import os
-import shutil
-from shutil import rmtree
 import csv
+from shutil import copyfile
+from shutil import rmtree
 from socket import gethostname
 hostname = gethostname()
 
@@ -39,7 +39,7 @@ class MSVDDataset():
         # dataset Path
         self.dataset_folder = self.root_folder / "MSVD"
 
-        #videos path
+        # videos path
         self.videos_folder = self.dataset_folder / "YouTubeClips"
 
         # train videos Path
@@ -57,7 +57,7 @@ class MSVDDataset():
         # annotations Path
         self.annotations_folder = self.dataset_folder / "annotations"
 
-        #csv caption path
+        # csv caption path
         self.captions = self.dataset_folder / "video_corpus.csv"
 
         # train captions path
@@ -90,96 +90,100 @@ class MSVDDataset():
         archive.unlink()
         rmtree(aux_dir)
 
-
-
     def splitVideos(self):
+        """
+            Splitting downloaded videos into train and val.
+        """
+
+        # check if the train and val folder exists if not create it.
         Path(self.train_folder).mkdir(parents=True, exist_ok=True)
         Path(self.val_folder).mkdir(parents=True, exist_ok=True)
 
-        videoNames = []
-        for root,directoires,files in os.walk( self.videos_folder):
-            for filename in files:
-                file = os.path.basename(filename).split(".",1)[0]
-                videoNames.append(file)
-        print(videoNames[0:5])
+        # get files in the videos_folder
+        videoNames = self.videos_folder.glob("*.avi")
 
-        trainSize = len(videoNames)*0.80
-        valSize = len(videoNames)*0.20
+        # calculate train video size
+        trainSize = int(len(list(videoNames)) * 0.80)
 
-        trainVideoID = []
-        valVideoId = []
-
-        for i in range(len(videoNames)):
-            if i<trainSize:
-                videoId = str(videoNames[i]) + ".avi"
-                original =  self.videos_folder / videoId
-                target = self.train_folder / videoId
-                shutil.copyfile(original,target)
-                trainVideoID.append(videoNames[i])
-            else:
-                videoId = str(videoNames[i]) + ".avi"
+        # copy videos to train and val folder
+        for i, j in enumerate(self.videos_folder.glob('*.avi')):
+            if i < trainSize:
+                videoId = j.stem + ".avi"
                 original = self.videos_folder / videoId
-                target = self.val_folder /videoId
-                shutil.copyfile(original, target)
-                valVideoId.append(videoNames[i])
-
-
+                target = self.train_folder / videoId
+                copyfile(original, target)
+            else:
+                videoId = j.stem + ".avi"
+                original = self.videos_folder / videoId
+                target = self.val_folder / videoId
+                copyfile(original, target)
 
     def createJson(self):
+        """
+            Split csv file into train json and val json
+        """
 
-        trainID = []
-        valID = []
+        #Collect train video id in list
+        trainID = [i.stem for i in self.train_folder.glob("*.avi")]
 
-        for root, directoires, files in os.walk(self.train_folder):
-            for filename in files:
-                file = os.path.basename(filename).split(".", 1)[0]
-                trainID.append(file)
+        #Collect val video id in list
+        valID =  [i.stem for i in self.val_folder.glob("*.avi")]
 
-        for root, directoires, files in os.walk(self.val_folder):
-            for filename in files:
-                file = os.path.basename(filename).split(".", 1)[0]
-                valID.append(file)
-
-        csvCorpus = pandas.read_csv(self.captions)
 
         json_train = []
         json_val = []
 
-        for i in range(len(csvCorpus.Language)):
-            jsonElement = {"id": "","caption": ""}
+        #read csv file
+        with open(self.captions,encoding="utf8") as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            for row in csv_reader:
 
-            if csvCorpus.Language[i] == "English":
+                jsonElement = {"id": "", "caption": ""}
 
-                if str(csvCorpus.VideoID[i]) + "_" + str(csvCorpus.Start[i]) + "_" + str(
-                        csvCorpus.End[i]) in trainID:
-                    jsonElement["id"] = str(csvCorpus.VideoID[i]) + "_" + str(csvCorpus.Start[i]) + "_" + str(
-                        csvCorpus.End[i])
-                    jsonElement["caption"] = str(csvCorpus.Description[i])
-                    json_train.append(jsonElement)
-
-                elif str(csvCorpus.VideoID[i]) + "_" + str(csvCorpus.Start[i]) + "_" + str(
-                        csvCorpus.End[i]) in valID:
-                    jsonElement["id"] = str(csvCorpus.VideoID[i]) + "_" + str(csvCorpus.Start[i]) + "_" + str(
-                        csvCorpus.End[i])
-                    jsonElement["caption"] = str(csvCorpus.Description[i])
-                    json_val.append(jsonElement)
-
-                else:
+                #if row is empty, pass
+                if row == []:
                     pass
 
+                #if caption is English
+                elif row[6] == "English":
+
+                    #if id in train
+                    if str(row[0]) + "_" + str(row[1]) + "_" + str(row[2]) in trainID:
+
+                        jsonElement["id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
+                        jsonElement["caption"] = str(row[7])
+                        json_train.append(jsonElement)
+
+                    # if id in val
+                    elif str(row[0]) + "_" + str(row[1]) + "_" + str(row[2]) in valID:
+                        jsonElement["id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
+                        jsonElement["caption"] = str(row[7])
+                        json_val.append(jsonElement)
+
+        #check if the annotations folder exists if not create it.
         Path(self.annotations_folder).mkdir(parents=True, exist_ok=True)
 
+        #save train id-caption list to json
         with open(self.train_captions, 'w') as f:
             json.dump(json_train, f)
 
+        # save val id-caption list to json
         with open(self.val_captions, 'w') as f:
             json.dump(json_val, f)
 
+    def run(self):
+        self.download_dataset()
+        self.splitVideos()
+        self.createJson()
 
 
 
 if 'ozkan' in hostname:
     dt = MSVDDataset(Path('.'))
+    dt.run()
 else:
     dt = MSVDDataset()
-dt.download_dataset()
+    dt.run()
+
+
+
