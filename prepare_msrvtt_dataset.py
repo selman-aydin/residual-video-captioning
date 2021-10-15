@@ -9,7 +9,9 @@ import random
 from torchvision.datasets.utils import _get_google_drive_file_id, _extract_zip, extract_archive
 
 # Default number for seed is 0.
-random.seed(0)
+# random.seed(0)
+
+VAL_IDS = 6513  # index number where validation data starts.
 
 def download_file_from_google_drive(id, destination):
     def get_confirm_token(response):
@@ -40,60 +42,36 @@ def download_file_from_google_drive(id, destination):
 
     save_response_content(response, destination)  
 
-def load_json_list(json_path: pathlib.Path, test: bool=False) -> Tuple[List[str], List[str]]:
-    # Initialize ids list.
-    video_ids_set = set()
+def load_json_list(json_path: pathlib.Path) -> Tuple[List[str], List[str], List[str]]:
     # Initialize video_paths list.
     video_paths = []
     # Initialize ids list.
     video_ids = []
     # Initialize train captions list.
     captions = []
-    # start times
-    start_times = []
-    # end times
-    end_times = []
     # Load json file in train_data
     data = json.loads(json_path.read_bytes())
 
     # Go through train data.
     print(f'Loading {str(json_path)} data...')
-    previous_id_len = 0
-    videos = data['videos']
     for annotation in tqdm(data['sentences']):
         # load caption and add start-of-caption and end-of-caption words.
         caption = 'boc ' + annotation['caption'] + ' eoc'
         # load id and add 0s till the id's string length is 12 which is the complete name of the video.
         video_id = annotation['video_id']
         # extract the video part in id. ex: video2869:str -> 2869:int
+        # validate : 6513
         id = int(video_id[5:])
-        if test:
-            video_info = videos[id-7010]
-        else:
-            video_info = videos[id]
-            
-        video_start_time = video_info['start time']
-        video_end_time = video_info['end time']
-
-        if test:
-            video_ids_set.add(id)
-            if len(video_ids_set) > previous_id_len:
-                video_paths.append(video_id)
-                video_ids.append(id)
-                previous_id_len = len(video_ids)
-                start_times.append(video_start_time)
-                end_times.append(video_end_time)
-                captions.append(caption)
-        else:
+      
+        if id < VAL_IDS: # 6513 is where the validation data starts
+            # train
             video_paths.append(video_id)
             video_ids.append(id)
-            start_times.append(video_start_time)
-            end_times.append(video_end_time)
             captions.append(caption)
 
     print('Data is loaded.')
-
-    return video_paths, captions, video_ids, start_times, end_times
+    
+    return video_paths, captions, video_ids
 
 class MSRVTTDataset():
     '''
@@ -142,16 +120,22 @@ class MSRVTTDataset():
         # val videos Path
         self.test_folder = self.dataset_folder / "TestVideo"
 
-        # train videos Path
-        self.train_features_folder = self.train_folder / "features_train"
+        # train visual features Path
+        self.train_visual_features_folder = self.dataset_folder / "features_visual_train"
 
-        # val features Path
-        self.val_features_folder = self.test_folder / "features_test"
+        # train audial features Path
+        self.train_audial_features_folder = self.dataset_folder / "features_audial_train"
+
+        # test features Path
+        self.test_visual_features_folder = self.dataset_folder / "features_visual_test"
+
+        # test features Path
+        self.test_audial_features_folder = self.dataset_folder / "features_audial_test"
 
         # train captions path
         self.train_annotations = self.dataset_folder / "train_val_videodatainfo.json"
 
-        # val captions path
+        # test captions path
         self.test_annotations = self.dataset_folder / "test_videodatainfo.json"
 
     def download_dataset(self) -> None:
@@ -174,21 +158,22 @@ class MSRVTTDataset():
             extract_archive(str(file), str(self.dataset_folder))
             file.unlink()
             
-    def load_data(self) -> Tuple[List[str], List[str], List[str], List[str]]:
+    def load_data(self) -> Tuple[List[str], List[str], List[str]]:
         '''
             Load the MSCOCO captions and their corresponding video ids.
             paths, captions, ids, start_times, end_times
         '''
 
-        train_paths, train_captions, train_ids, train_start_time, train_end_time = load_json_list(self.train_annotations)
-        test_paths, test_captions, test_ids, test_start_time, test_end_time = load_json_list(self.test_annotations, test=True)
-        
-        train_data = zip(train_paths, train_captions, train_ids, train_start_time, train_end_time)
-        test_data = zip(test_paths, test_captions, test_ids, test_start_time, test_end_time)
+        train_paths, train_captions, train_ids = load_json_list(self.train_annotations)
+        train_data = zip(train_paths, train_captions, train_ids)
+        train_paths = self.train_folder.glob("*.mp4")
+        val_ids = [path.stem for path in train_paths if int(path.stem[5:]) >= VAL_IDS]
+        test_paths = self.test_folder.glob("*.mp4")
+        test_ids = [path.stem for path in test_paths]
 
-        return train_data, test_data
+        return train_data, val_ids, test_ids
 
 # dt = MSRVTTDataset()
 # dt.download_dataset()
-# train_data, test_data = dt.load_data()
+# train_data, val_ids, test_ids = dt.load_data()
 
