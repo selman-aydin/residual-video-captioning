@@ -2,9 +2,6 @@ from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 import time
 
-from torchtext.vocab.vocab_factory import vocab 
-
-
 eng_prefixes = {
     "i am": "i m",
     "he is": "he s",
@@ -13,18 +10,19 @@ eng_prefixes = {
     "we are": "we re",
     "they are": "they re"
 }
+
+
 def get_captions_length(captions, tokenizer):
     captions_lengths = [0] * 175
     for caption in captions:
         _, processed_caption_list = preprocess_txt(caption, tokenizer)
         caption_length = len(processed_caption_list)
         captions_lengths[caption_length] += 1
-    
-    
+
     return captions_lengths
 
-def filter_captions_through_lengths(paths, captions, tokenizer, min_length, max_length):
 
+def filter_captions_through_lengths(paths, captions, tokenizer, min_length, max_length):
     filtered_paths = []
     filtered_captions = []
     for path, caption in zip(paths, captions):
@@ -35,13 +33,12 @@ def filter_captions_through_lengths(paths, captions, tokenizer, min_length, max_
                 processed_caption += " pad"
             filtered_captions.append(processed_caption)
             filtered_paths.append(path)
-            
+
     return filtered_paths, filtered_captions
 
 
-
-def preprocess_txt(text:str, tokenizer) -> str:
-    punctuations="\\?:!.,;!\"#$%&()*+.,-/:;=?@[\]^_\'{|}~<>"
+def preprocess_txt(text: str, tokenizer) -> str:
+    punctuations = "\\?:!.,;!\"#$%&()*+.,-/:;=?@[\]^_\'{|}~<>"
     filter_text = ""
     input_text = text.lower()
     for x, y in eng_prefixes.items():
@@ -52,10 +49,12 @@ def preprocess_txt(text:str, tokenizer) -> str:
             filter_text += word + " "
     return filter_text[:-1], tokenizer(filter_text[:-1])
 
+
 def yield_tokens(train_iter, tokenizer):
     for text in train_iter:
         _, text_list = preprocess_txt(text, tokenizer)
         yield text_list
+
 
 def tokenize_captions(paths, captions, vocab, tokenizer, max_len):
     result_paths = []
@@ -72,12 +71,13 @@ def tokenize_captions(paths, captions, vocab, tokenizer, max_len):
 
 
 def get_vocab(data, min_freq=1, min_length=9, max_length=17):
-    paths, captions, _ = zip(*data)
+    paths, captions,_ = zip(*data)
     tokenizer = get_tokenizer('spacy', language='en_core_web_sm')
     caption_lengths = get_captions_length(captions, tokenizer)
     print("Filtering Captions by lengths...")
     t_start = time.time()
-    processed_paths, processed_captions = filter_captions_through_lengths(paths, captions, tokenizer, min_length, max_length)
+    processed_paths, processed_captions = filter_captions_through_lengths(paths, captions, tokenizer, min_length,
+                                                                          max_length)
     t_end = time.time()
     print("Done.")
     print(f"Filtering Time:      {t_end - t_start}")
@@ -92,13 +92,12 @@ def get_vocab(data, min_freq=1, min_length=9, max_length=17):
     print(f"Vocab Creation Time:      {t_end - t_start}")
     print("Tokenizing Captions...")
     t_start = time.time()
-    processed_paths, processed_captions = tokenize_captions(processed_paths, processed_captions, vocab, tokenizer, max_length)
+    processed_paths, processed_captions = tokenize_captions(processed_paths, processed_captions, vocab, tokenizer,
+                                                            max_length)
     t_end = time.time()
     print("Done.")
     print(f"Tokenization Time:      {t_end - t_start}")
     return processed_paths, processed_captions, vocab, tokenizer
-
-
 
 
 '''
@@ -110,18 +109,14 @@ dt = MSCOCODataset()
 train_data, val_data, test_ids = dt.load_data()
 train_ids, train_captions = zip(*train_data)
 val_ids, val_captions = zip(*val_data)
-
 train_iter = iter(train_captions)
-
 print(next(train_iter))
-
 t_start = time.time()
 vocab = build_vocab_from_iterator(yield_tokens(train_iter), min_freq=7, specials=['<unk>', '<pad>'])
 t_end = time.time()
 vocab.set_default_index(vocab["<unk>"])
 print(f"Length of vocab: {vocab.__len__()}")
 print(f"Time:            {t_end - t_start}")
-
 # print(vocab(["hers", "a", "an", "example", "on", "off", "should", "be", "bew", "me", "!"]))
 for i in range(10):
     input_txt = preprocess_txt(train_captions[i])

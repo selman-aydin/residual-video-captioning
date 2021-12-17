@@ -202,7 +202,7 @@ class MSVDDataset():
 
                     #if id in train
                     if str(row[0]) + "_" + str(row[1]) + "_" + str(row[2]) in trainID:
-                        jsonElement["id"] = str(row[0])
+                        jsonElement["id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
                         jsonElement["path"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
                         jsonElement["caption"] = str(row[7])
                         json_train.append(jsonElement)
@@ -210,14 +210,14 @@ class MSVDDataset():
                     # if id in test
                     elif str(row[0]) + "_" + str(row[1]) + "_" + str(row[2]) in testID:
                         jsonElement["path"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
-                        jsonElement["id"] = str(row[0])
+                        jsonElement["id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
                         jsonElement["caption"] = str(row[7])
                         json_test.append(jsonElement)
 
                     # if id in val
                     elif str(row[0]) + "_" + str(row[1]) + "_" + str(row[2]) in valID:
                         jsonElement["path"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
-                        jsonElement["id"] = str(row[0])
+                        jsonElement["id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
                         jsonElement["caption"] = str(row[7])
                         json_val.append(jsonElement)
 
@@ -254,12 +254,12 @@ class MSVDDataset():
         test_paths, test_captions, test_ids = load_json_list(self.test_captions)
         test_data = zip(test_paths, test_captions, test_ids)
 
-        return train_data,val_data,test_data
+        return train_data,val_paths,test_paths
 
     def run(self):
 
         #self.downlocapad_dataset()
-        self.splitVideos()
+        #self.splitVideos()
         self.createJson()
         self.load_data()
 
