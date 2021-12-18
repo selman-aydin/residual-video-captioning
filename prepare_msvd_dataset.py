@@ -263,8 +263,7 @@ class MSVDDataset():
         self.createJson()
         self.load_data()
 
-a = MSVDDataset()
-a.run()
+
 
 
 

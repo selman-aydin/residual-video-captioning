@@ -4,17 +4,13 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import Compose, Resize, CenterCrop, Normalize
 from torchvision.io import read_video
-from torchaudio.transforms import MFCC, Resample
 from Inception import inception_v3
 from typing import List, Union
 
 from pathlib import Path
 from prepare_msrvtt_dataset import MSRVTTDataset
+from prepare_msvd_dataset import MSVDDataset
 from tqdm import tqdm
-
-mfcc = MFCC(sample_rate=44100)
-audial_resize = Resize((40, 256))
-resampler = Resample(orig_freq=44100, new_freq=44100)
 
 # CUDA for PyTorch
 use_cuda = torch.cuda.is_available()
@@ -30,9 +26,10 @@ model = inception_v3(True)
 model = model.to(device)
 
 IMAGE_SIZE = 299
-FRAME_SIZE = 16
+FRAME_SIZE = 8
 
 msrvtt_dt = MSRVTTDataset()
+msvd_dt   = MSVDDataset()
 
 class FeatureExtractionDataset(Dataset):
     'Characterizes a dataset for PyTorch'
@@ -69,15 +66,6 @@ class FeatureExtractionDataset(Dataset):
         path = self.ids[index]
         # Load data as visual, audial, and get fps of both visual and audial.
         visual, audial, info = read_video(str(path))
-        # Check if there are audial data.
-        if audial.shape[1] == 0:
-            # if there are not audial data. Create zero feature vector as audial feature.
-            audial_feature = torch.zeros((40*256))
-        else:
-            # if there are resample audio data then take the mean of the channels.
-            audial = torch.mean(resampler(audial), dim=0, keepdim=True)
-            # extract mfcc features from audial data and resize it to 40x256 matrix then convert it to a vector which has length of (40x256)
-            audial_feature = audial_resize(mfcc(audial)).view(1, -1).squeeze()
 
         # initialize visual frames with zeros.
         visual_frames = torch.zeros((self.frame_size, 3, self.im_size, self.im_size))
@@ -100,7 +88,7 @@ class FeatureExtractionDataset(Dataset):
             
         id = str(path.parts[-1][:-4]) # get ID of the image from its path.
 
-        return visual_frames, audial_feature, id
+        return visual_frames, id
 
 class FeatureExtraction():
     '''
@@ -110,11 +98,14 @@ class FeatureExtraction():
 
         self.input_folder = input_folder # input video folder
         self.output_visual_folder = output_folders[0] # output folder for visual features
-        self.output_audial_folder = output_folders[1] # output folder for audial features
         self.model = model.eval() # assign model in evaluation mode
         self.IMAGE_SIZE = IMAGE_SIZE  # initialize input image size
         self.params = params # initialize parameters for dataloader
-        self.ids = list(input_folder.glob('*.mp4')) # list of video files from input folder
+        dt_name = str(self.output_visual_folder).split("/")[-2]
+        if dt_name == "MSVD":
+            self.ids = list(input_folder.glob('*.avi'))  # list of video files from input folder
+        else:
+            self.ids = list(input_folder.glob('*.mp4'))  # list of video files from input folder
         self.frame_size = FRAME_SIZE # initialize frame size
         self.set = FeatureExtractionDataset(self.ids, self.input_folder, self.IMAGE_SIZE, self.frame_size) # initialize dataset
         self.generator = DataLoader(self.set, **self.params) # initialize dataloader
@@ -122,9 +113,7 @@ class FeatureExtraction():
         if not self.output_visual_folder.exists():
             Path(self.output_visual_folder).mkdir(parents=True, exist_ok=True)
             print(f"path: {str(self.output_visual_folder)} is created.")
-        if not self.output_audial_folder.exists():
-            Path(self.output_audial_folder).mkdir(parents=True, exist_ok=True)
-            print(f"path: {str(self.output_audial_folder)} is created.")
+
 
     def run(self) -> None:
         '''
@@ -132,21 +121,19 @@ class FeatureExtraction():
             from videos and save them in .pt files in corresponding output folders.
         '''
         print(f"Extracting: {str(self.input_folder)}")
-        for local_visual, local_audial, local_ids in tqdm(self.generator):
-            local_visual = local_visual.to(device) 
-            local_audial = local_audial.to(device) 
+        for local_visual, local_ids in tqdm(self.generator):
+            local_visual = local_visual.to(device)
             visual_features = torch.zeros((local_visual.shape[0], self.frame_size, 2048))
             for i in range(self.frame_size):
                 with torch.no_grad():
                     inp = local_visual[:, i, :, :, :]
                     visual_features[:, i, :] = model(inp) # Shape (N, frame_size, feature_size)
-            for visual_feature, audial_feature, id in zip(visual_features, local_audial, local_ids):
+            for visual_feature, id in zip(visual_features, local_ids):
                 torch.save(visual_feature.cpu(), self.output_visual_folder / f'{id}.pt')
-                torch.save(audial_feature.cpu(), self.output_audial_folder / f'{id}.pt')
         print(f"{str(self.input_folder)} extracted.")
 
-input_folders = [msrvtt_dt.train_folder, msrvtt_dt.test_folder]
-output_folders = [[msrvtt_dt.train_visual_features_folder, msrvtt_dt.train_audial_features_folder], [msrvtt_dt.test_visual_features_folder, msrvtt_dt.test_audial_features_folder]]
+input_folders = [msvd_dt.train_folder,msvd_dt.val_folder,msvd_dt.test_folder,msrvtt_dt.train_folder, msrvtt_dt.test_folder]
+output_folders = [[msvd_dt.train_features_folder],[msvd_dt.val_features_folder],[msvd_dt.test_features_folder],[msrvtt_dt.train_features_folder], [msrvtt_dt.test_features_folder]]
 
 for inp, out in zip(input_folders, output_folders):
     x = FeatureExtraction(input_folder=inp, output_folders=out, model=model, IMAGE_SIZE=IMAGE_SIZE, FRAME_SIZE=FRAME_SIZE, params=PARAMS)

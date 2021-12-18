@@ -109,7 +109,7 @@ class MSRVTTDataset():
         self.test_annotations_path = ["https://drive.google.com/file/d/16iaSq_qi3ve3coqZHokcWJCvIEv6AcH3", "test_annotation.zip"]
 
         # Project root Path
-        self.root_folder = root_folder if root_folder is not None else Path('.')
+        self.root_folder = root_folder if root_folder is not None else Path('/') / 'media' / 'envisage' / 'Yeni Birim' / 'Selman'
 
         # Drive Path
         self.dataset_folder = self.root_folder / self.name
@@ -121,16 +121,10 @@ class MSRVTTDataset():
         self.test_folder = self.dataset_folder / "TestVideo"
 
         # train visual features Path
-        self.train_visual_features_folder = self.dataset_folder / "features_visual_train"
-
-        # train audial features Path
-        self.train_audial_features_folder = self.dataset_folder / "features_audial_train"
+        self.train_features_folder = self.dataset_folder / "features_train"
 
         # test features Path
-        self.test_visual_features_folder = self.dataset_folder / "features_visual_test"
-
-        # test features Path
-        self.test_audial_features_folder = self.dataset_folder / "features_audial_test"
+        self.test_features_folder = self.dataset_folder / "features_test"
 
         # train captions path
         self.train_annotations = self.dataset_folder / "train_val_videodatainfo.json"
@@ -173,7 +167,4 @@ class MSRVTTDataset():
 
         return train_data, val_ids, test_ids
 
-# dt = MSRVTTDataset()
-# dt.download_dataset()
-# train_data, val_ids, test_ids = dt.load_data()
 
