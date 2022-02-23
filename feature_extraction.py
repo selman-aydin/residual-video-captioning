@@ -29,7 +29,8 @@ IMAGE_SIZE = 299
 FRAME_SIZE = 8
 
 msrvtt_dt = MSRVTTDataset()
-msvd_dt   = MSVDDataset()
+msvd_dt = MSVDDataset()
+
 
 class FeatureExtractionDataset(Dataset):
     'Characterizes a dataset for PyTorch'
@@ -42,6 +43,7 @@ class FeatureExtractionDataset(Dataset):
         im_size: To transform the image into specified size. ie: inception_v3 model takes 3x299x299 so the im_size = 299.
         frame_size: how many visual frame to be extracted from the visual data.
     '''
+
     def __init__(self, ids, path, im_size, frame_size):
         'Initialization'
         self.ids = ids
@@ -53,7 +55,6 @@ class FeatureExtractionDataset(Dataset):
         ])
         self.im_size = im_size
         self.frame_size = frame_size
-        
 
     def __len__(self):
         'Denotes the total number of samples'
@@ -80,40 +81,43 @@ class FeatureExtractionDataset(Dataset):
             # get the frame from the visual data.
             im = visual[idx]
             # Change order of the channels and normalize to 0-1. shape (H, W, C) -> (C, H, W)
-            im = torch.div(im, 255).permute(2, 0, 1) 
+            im = torch.div(im, 255).permute(2, 0, 1)
             # Transform the images into given im size and normalize.
             im = self.transform(im)
             # add the resulted frame into the corresponding visual frames index.
             visual_frames[i] = im
-            
-        id = str(path.parts[-1][:-4]) # get ID of the image from its path.
+
+        id = str(path.parts[-1][:-4])  # get ID of the image from its path.
 
         return visual_frames, id
+
 
 class FeatureExtraction():
     '''
     Class for visual and audial feature extraction.
     '''
-    def __init__(self, input_folder:Path, output_folders:List[Union[Path, Path]], model:torch.nn.Module, IMAGE_SIZE:int, FRAME_SIZE:int, params:dict) -> None:
 
-        self.input_folder = input_folder # input video folder
-        self.output_visual_folder = output_folders[0] # output folder for visual features
-        self.model = model.eval() # assign model in evaluation mode
+    def __init__(self, input_folder: Path, output_folders: List[Union[Path, Path]], model: torch.nn.Module,
+                 IMAGE_SIZE: int, FRAME_SIZE: int, params: dict) -> None:
+
+        self.input_folder = input_folder  # input video folder
+        self.output_visual_folder = output_folders[0]  # output folder for visual features
+        self.model = model.eval()  # assign model in evaluation mode
         self.IMAGE_SIZE = IMAGE_SIZE  # initialize input image size
-        self.params = params # initialize parameters for dataloader
+        self.params = params  # initialize parameters for dataloader
         dt_name = str(self.output_visual_folder).split("/")[-2]
         if dt_name == "MSVD":
             self.ids = list(input_folder.glob('*.avi'))  # list of video files from input folder
         else:
             self.ids = list(input_folder.glob('*.mp4'))  # list of video files from input folder
-        self.frame_size = FRAME_SIZE # initialize frame size
-        self.set = FeatureExtractionDataset(self.ids, self.input_folder, self.IMAGE_SIZE, self.frame_size) # initialize dataset
-        self.generator = DataLoader(self.set, **self.params) # initialize dataloader
+        self.frame_size = FRAME_SIZE  # initialize frame size
+        self.set = FeatureExtractionDataset(self.ids, self.input_folder, self.IMAGE_SIZE,
+                                            self.frame_size)  # initialize dataset
+        self.generator = DataLoader(self.set, **self.params)  # initialize dataloader
         # create output folders
         if not self.output_visual_folder.exists():
             Path(self.output_visual_folder).mkdir(parents=True, exist_ok=True)
             print(f"path: {str(self.output_visual_folder)} is created.")
-
 
     def run(self) -> None:
         '''
@@ -127,14 +131,18 @@ class FeatureExtraction():
             for i in range(self.frame_size):
                 with torch.no_grad():
                     inp = local_visual[:, i, :, :, :]
-                    visual_features[:, i, :] = model(inp) # Shape (N, frame_size, feature_size)
+                    visual_features[:, i, :] = model(inp)  # Shape (N, frame_size, feature_size)
             for visual_feature, id in zip(visual_features, local_ids):
                 torch.save(visual_feature.cpu(), self.output_visual_folder / f'{id}.pt')
         print(f"{str(self.input_folder)} extracted.")
 
-input_folders = [msvd_dt.train_folder,msvd_dt.val_folder,msvd_dt.test_folder,msrvtt_dt.train_folder, msrvtt_dt.test_folder]
-output_folders = [[msvd_dt.train_features_folder],[msvd_dt.val_features_folder],[msvd_dt.test_features_folder],[msrvtt_dt.train_features_folder], [msrvtt_dt.test_features_folder]]
+
+input_folders = [msvd_dt.train_folder, msvd_dt.val_folder, msvd_dt.test_folder, msrvtt_dt.train_folder,
+                 msrvtt_dt.test_folder]
+output_folders = [[msvd_dt.train_features_folder], [msvd_dt.val_features_folder], [msvd_dt.test_features_folder],
+                  [msrvtt_dt.train_features_folder], [msrvtt_dt.test_features_folder]]
 
 for inp, out in zip(input_folders, output_folders):
-    x = FeatureExtraction(input_folder=inp, output_folders=out, model=model, IMAGE_SIZE=IMAGE_SIZE, FRAME_SIZE=FRAME_SIZE, params=PARAMS)
+    x = FeatureExtraction(input_folder=inp, output_folders=out, model=model, IMAGE_SIZE=IMAGE_SIZE,
+                          FRAME_SIZE=FRAME_SIZE, params=PARAMS)
     x.run()
