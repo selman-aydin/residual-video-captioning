@@ -23,6 +23,7 @@ def get_captions_length(captions, tokenizer):
 
 
 def filter_captions_through_lengths(paths, captions, tokenizer, min_length, max_length):
+
     filtered_paths = []
     filtered_captions = []
     for path, caption in zip(paths, captions):
@@ -31,6 +32,7 @@ def filter_captions_through_lengths(paths, captions, tokenizer, min_length, max_
         if (len_of_caption > min_length) and (len_of_caption <= max_length):
             for i in range(max_length - len_of_caption):
                 processed_caption += " pad"
+
             filtered_captions.append(processed_caption)
             filtered_paths.append(path)
 
@@ -66,11 +68,13 @@ def tokenize_captions(paths, captions, vocab, tokenizer, max_len):
         for i in range(max_len - len(processed_caption_list)):
             tokens.append(0)
         result_tokens.append(tokens)
+        if len(tokens) != 14:
+            print("")
 
     return result_paths, result_tokens
 
 
-def get_vocab(data, min_freq=1, min_length=9, max_length=17):
+def get_vocab(data, min_freq=1, min_length=5, max_length=14):
     paths, captions,_ = zip(*data)
     tokenizer = get_tokenizer('spacy', language='en_core_web_sm')
     caption_lengths = get_captions_length(captions, tokenizer)
@@ -94,6 +98,9 @@ def get_vocab(data, min_freq=1, min_length=9, max_length=17):
     t_start = time.time()
     processed_paths, processed_captions = tokenize_captions(processed_paths, processed_captions, vocab, tokenizer,
                                                             max_length)
+    for i in processed_captions:
+        if len(i)!=14 and i[-1] ==0:
+            i.pop()
     t_end = time.time()
     print("Done.")
     print(f"Tokenization Time:      {t_end - t_start}")

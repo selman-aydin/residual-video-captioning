@@ -28,14 +28,14 @@ def load_json_list(json_path: pathlib.Path) -> Tuple[List[str], List[str], List[
 
     # Go through train data.
     print(f'Loading {str(json_path)} data...')
-    for annotation in tqdm(data):
+    for annotation in tqdm(data["annotations"]):
         # load caption and add start-of-caption and end-of-caption words.
         caption = 'boc ' + annotation['caption'] + ' eoc'
 
         # load video id
         video_id   = annotation['id']
         # load video path
-        video_path = annotation['path']
+        video_path = annotation['image_id']
 
         video_paths.append(video_path)
         video_ids.append(video_id)
@@ -186,12 +186,23 @@ class MSVDDataset():
         json_test = []
         json_val = []
 
+        json_Images_train = []
+        json_Images_test = []
+        json_Images_val = []
+
+
+
+        dict_json_train = {"annotations": [], "images": []}
+        dict_json_test = {"annotations": [], "images": []}
+        dict_json_val = {"annotations": [], "images": []}
+
         #read csv file
         with open(self.captions,encoding="utf8") as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
             for row in csv_reader:
 
-                jsonElement = {"id": "", "path": "", "caption": ""}
+                jsonElement = {"id": "", "image_id": "", "caption": ""}
+                jsonImage = {"id": ""}
 
                 #if row is empty, pass
                 if row == []:
@@ -203,22 +214,32 @@ class MSVDDataset():
                     #if id in train
                     if str(row[0]) + "_" + str(row[1]) + "_" + str(row[2]) in trainID:
                         jsonElement["id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
-                        jsonElement["path"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
+                        jsonElement["image_id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
                         jsonElement["caption"] = str(row[7])
+                        jsonImage["id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
+                        if not jsonImage in json_Images_train:
+                            json_Images_train.append(jsonImage)
+
                         json_train.append(jsonElement)
 
                     # if id in test
                     elif str(row[0]) + "_" + str(row[1]) + "_" + str(row[2]) in testID:
-                        jsonElement["path"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
+                        jsonElement["image_id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
                         jsonElement["id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
                         jsonElement["caption"] = str(row[7])
+                        jsonImage["id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
+                        if not jsonImage in json_Images_test:
+                            json_Images_test.append(jsonImage)
                         json_test.append(jsonElement)
 
                     # if id in val
                     elif str(row[0]) + "_" + str(row[1]) + "_" + str(row[2]) in valID:
-                        jsonElement["path"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
+                        jsonElement["image_id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
                         jsonElement["id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
                         jsonElement["caption"] = str(row[7])
+                        jsonImage["id"] = str(row[0]) + "_" + str(row[1]) + "_" + str(row[2])
+                        if not jsonImage in json_Images_val:
+                            json_Images_val.append(jsonImage)
                         json_val.append(jsonElement)
 
 
@@ -229,15 +250,21 @@ class MSVDDataset():
 
         #save train id-caption list to json
         with open(self.train_captions, 'w') as f:
-            json.dump(json_train, f)
+            dict_json_train["annotations"] = json_train
+            dict_json_train["images"] = json_Images_train
+            json.dump(dict_json_train, f)
 
         # save test id-caption list to json
         with open(self.test_captions, 'w') as f:
-            json.dump(json_test, f)
+            dict_json_test["annotations"] = json_test
+            dict_json_test["images"] = json_Images_test
+            json.dump(dict_json_test, f)
 
         # save val id-caption list to json
         with open(self.val_captions, 'w') as f:
-            json.dump(json_val, f)
+            dict_json_val["annotations"] = json_val
+            dict_json_val["images"] = json_Images_val
+            json.dump(dict_json_val, f)
 
     def load_data(self) -> Tuple[List[str], List[str], List[str]]:
         '''
@@ -261,9 +288,10 @@ class MSVDDataset():
         #self.downlocapad_dataset()
         #self.splitVideos()
         self.createJson()
-        self.load_data()
+        #self.load_data()
 
-
+a = MSVDDataset()
+a.run()
 
 
 

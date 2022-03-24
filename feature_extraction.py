@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 # CUDA for PyTorch
 use_cuda = torch.cuda.is_available()
-device = torch.device("cuda:0" if use_cuda else "cpu")
+device = torch.device("cuda:3" if use_cuda else "cpu")
 torch.backends.cudnn.benchmark = True
 
 # Parameters
@@ -26,7 +26,7 @@ model = inception_v3(True)
 model = model.to(device)
 
 IMAGE_SIZE = 299
-FRAME_SIZE = 8
+FRAME_SIZE = 16
 
 msrvtt_dt = MSRVTTDataset()
 msvd_dt = MSVDDataset()
